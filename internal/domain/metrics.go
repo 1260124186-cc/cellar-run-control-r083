@@ -29,3 +29,7 @@ func CalculateMetrics(originalGravity, finalGravity float64, count int) RunMetri
 func round2(value float64) float64 {
 	return math.Round(value*100) / 100
 }
+
+func round3(value float64) float64 {
+	return math.Round(value*1000) / 1000
+}

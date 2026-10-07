@@ -18,6 +18,14 @@ func Run(name string) error {
 	}
 	defer os.RemoveAll(dataDir)
 
+	if name == "completion-report" {
+		if err := completionReport(dataDir); err != nil {
+			return err
+		}
+		fmt.Printf("workflow check passed: %s\n", name)
+		return nil
+	}
+
 	store, err := storage.Open(dataDir)
 	if err != nil {
 		return err

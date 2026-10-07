@@ -79,13 +79,15 @@ func statusForCode(code domain.Code) int {
 	switch code {
 	case domain.CodeInvalidInput:
 		return http.StatusBadRequest
-	case domain.CodeFormulaNotFound, domain.CodeVesselNotFound, domain.CodeRunNotFound:
+	case domain.CodeFormulaNotFound, domain.CodeVesselNotFound, domain.CodeRunNotFound,
+		domain.CodeReportNotFound:
 		return http.StatusNotFound
 	case domain.CodeFormulaNameConflict, domain.CodeFormulaState,
 		domain.CodeFormulaInUse, domain.CodeVesselConflict,
 		domain.CodeVesselUnavailable, domain.CodeVesselState,
 		domain.CodeRunConflict, domain.CodeRunState,
-		domain.CodeObservationConflict:
+		domain.CodeObservationConflict, domain.CodeReportExists,
+		domain.CodeReportDataMissing:
 		return http.StatusConflict
 	case domain.CodeRevisionConflict:
 		return http.StatusPreconditionFailed

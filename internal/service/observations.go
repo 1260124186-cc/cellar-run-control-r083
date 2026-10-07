@@ -94,6 +94,11 @@ func (s *Service) CompleteRun(
 		}
 		snapshot.Runs[id] = run.Clone()
 		snapshot.Vessels[vessel.ID] = vessel
+		report, err := buildRunReport(snapshot, id, s.clock.Now())
+		if err != nil {
+			return err
+		}
+		snapshot.Reports[id] = report
 		updatedRun = run.Clone()
 		updatedVessel = vessel
 		return nil

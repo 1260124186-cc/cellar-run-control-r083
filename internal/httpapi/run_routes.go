@@ -157,4 +157,22 @@ func registerRunRoutes(mux *http.ServeMux, app *service.Service) {
 		}
 		writeJSON(response, http.StatusOK, map[string]any{"run": run, "vessel": vessel})
 	})
+
+	mux.HandleFunc("GET /v1/runs/{id}/report", func(response http.ResponseWriter, request *http.Request) {
+		report, err := app.GetRunReport(request.PathValue("id"))
+		if err != nil {
+			writeDomainError(response, err)
+			return
+		}
+		writeJSON(response, http.StatusOK, report)
+	})
+
+	mux.HandleFunc("POST /v1/runs/{id}/report", func(response http.ResponseWriter, request *http.Request) {
+		report, err := app.GenerateRunReport(request.PathValue("id"))
+		if err != nil {
+			writeDomainError(response, err)
+			return
+		}
+		writeJSON(response, http.StatusCreated, report)
+	})
 }
