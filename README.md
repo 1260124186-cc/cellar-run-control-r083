@@ -92,6 +92,7 @@ Run workflow:
 - `POST /v1/runs/{id}/observations`
 - `POST /v1/runs/{id}/conditioning`
 - `POST /v1/runs/{id}/complete`
+- `GET /v1/runs/{id}/report`
 - `POST /v1/runs/{id}/abort`
 
 Writes accept an optional `X-Expected-Version` header. Errors use a stable
@@ -115,11 +116,39 @@ Run each production workflow check separately:
 go run ./cmd/fermentctl check formula-approval
 go run ./cmd/fermentctl check vessel-run-lifecycle
 go run ./cmd/fermentctl check observations-completion
+go run ./cmd/fermentctl check completion-report
 ```
 
 Each check creates a temporary snapshot directory, starts the real HTTP
 handler on a loopback listener, issues JSON requests, verifies success and
-failure behavior, and removes its temporary data.
+failure behavior, and removes its temporary data. The completion-report
+check additionally reopens its snapshot directory in a fresh process to
+verify restart persistence.
+
+## Completion Reports
+
+Completing a run atomically writes an immutable completion report in the
+same revision that moves the run to `completed`. The report freezes:
+
+- the approved formula, including its version, targets, and process steps;
+- the vessel association captured when it enters cleaning;
+- the complete, contiguous observation sequence;
+- the final metrics, which are the same values the run detail endpoint
+  serves;
+- plan deviations: final gravity versus the target final gravity, the
+  highest observed temperature versus the maximum fermentation temperature,
+  and elapsed fermentation days versus the planned minimum and maximum;
+- the generation time (the run completion time).
+
+`GET /v1/runs/{id}/report` is the stable read entry. It returns `404
+run_not_found` for an unknown run and `409 report_not_ready` for a run that
+has not completed (including aborted runs) or for a completed run whose
+report data is missing from the snapshot. Reports are written once: a
+repeat completion fails with `409 invalid_run_state`, and later formula or
+vessel changes never rewrite a frozen report. Reports are stored inside
+`state.json`, so they survive process restarts; on startup a report whose
+frozen metrics diverge from its run detail stops the process instead of
+serving inconsistent data.
 
 ## Persistence And Recovery
 

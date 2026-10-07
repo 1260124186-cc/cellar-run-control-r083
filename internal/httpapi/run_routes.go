@@ -63,6 +63,15 @@ func registerRunRoutes(mux *http.ServeMux, app *service.Service) {
 		writeJSON(response, http.StatusOK, run)
 	})
 
+	mux.HandleFunc("GET /v1/runs/{id}/report", func(response http.ResponseWriter, request *http.Request) {
+		report, err := app.GetRunReport(request.PathValue("id"))
+		if err != nil {
+			writeDomainError(response, err)
+			return
+		}
+		writeJSON(response, http.StatusOK, report)
+	})
+
 	mux.HandleFunc("POST /v1/runs/{id}/reserve", func(response http.ResponseWriter, request *http.Request) {
 		body, err := decodeJSON[reserveRunRequest](response, request)
 		if !handleDecode(response, err) {
@@ -135,13 +144,14 @@ func registerRunRoutes(mux *http.ServeMux, app *service.Service) {
 		if !handleDecode(response, err) {
 			return
 		}
-		run, vessel, err := app.CompleteRun(request.PathValue("id"),
+		run, vessel, report, err := app.CompleteRun(request.PathValue("id"),
 			service.VersionInput{ExpectedVersion: expected})
 		if err != nil {
 			writeDomainError(response, err)
 			return
 		}
-		writeJSON(response, http.StatusOK, map[string]any{"run": run, "vessel": vessel})
+		writeJSON(response, http.StatusOK,
+			map[string]any{"run": run, "vessel": vessel, "report": report})
 	})
 
 	mux.HandleFunc("POST /v1/runs/{id}/abort", func(response http.ResponseWriter, request *http.Request) {

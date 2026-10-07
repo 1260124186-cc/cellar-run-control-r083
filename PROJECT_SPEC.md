@@ -79,6 +79,13 @@ and `aborted`.
 - Completion computes apparent attenuation and estimated alcohol by volume from
   the formula target original gravity and the last observation.
 - Completion moves the vessel to cleaning without losing its run association.
+- Completion atomically freezes an immutable completion report containing the
+  formula version, vessel information, observation sequence, final metrics,
+  plan deviations, and generation time.
+- A report is written once with the completion revision and is never
+  regenerated or rewritten; later formula or vessel changes cannot alter it.
+- The stable read entry `GET /v1/runs/{id}/report` reports unknown runs,
+  unfinished runs, and completed runs with missing report data explicitly.
 - A non-completed run can be aborted. Aborting before fermentation releases an
   available vessel; aborting after fermentation schedules the vessel for
   cleaning.
@@ -140,12 +147,15 @@ Public entry points are:
 - `POST /v1/runs/{id}/observations`
 - `POST /v1/runs/{id}/conditioning`
 - `POST /v1/runs/{id}/complete`
+- `GET /v1/runs/{id}/report`
 - `GET /v1/runs/{id}`
 
 The client appends three ordered observations, starts conditioning, completes
-the run, and reads the calculated result. Non-monotonic times, rising gravity,
-out-of-range values, excessive sequences, incomplete data, and repeated
-transitions return stable failures without changing persisted state.
+the run, and reads the calculated result together with the frozen completion
+report. Non-monotonic times, rising gravity, out-of-range values, excessive
+sequences, incomplete data, and repeated transitions return stable failures
+without changing persisted state. Reports remain readable across process
+restarts, and the frozen report metrics always match the run detail.
 
 This path crosses HTTP protocol handling, application orchestration, numeric
 domain rules, and snapshot storage.
@@ -196,11 +206,17 @@ rejects a stale write instead of overwriting newer state.
 The configured data directory contains `state.json`. Writes are serialized by
 an in-process mutex. The complete state is encoded, committed to durable
 storage, and then atomically renamed over the target. An update is not
-published in memory unless persistence succeeds.
+published in memory unless persistence succeeds. Completion reports live
+inside the same revisioned snapshot, so report and run state can never be
+committed independently.
 
-Reads use copied values and never expose repository-owned maps or slices. The
-default address is `127.0.0.1:8088`, the request body limit is 1 MiB, and all
-workflow checks use temporary directories.
+Reads use copied values and never expose repository-owned maps or slices.
+On startup, each frozen report is checked against its run: a missing run, a
+non-completed run, a missing generation time, a truncated observation
+sequence, or final metrics that differ from the run detail stop the process
+before HTTP serving begins. The default address is `127.0.0.1:8088`, the
+request body limit is 1 MiB, and all workflow checks use temporary
+directories.
 
 ## Validation Plan
 
@@ -217,6 +233,7 @@ behavior, and exit without external services:
 - `go run ./cmd/fermentctl check formula-approval`
 - `go run ./cmd/fermentctl check vessel-run-lifecycle`
 - `go run ./cmd/fermentctl check observations-completion`
+- `go run ./cmd/fermentctl check completion-report`
 
 ## Scope Limits
 

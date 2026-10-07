@@ -40,6 +40,10 @@ func Run(name string) error {
 		if err := observationsCompletion(api); err != nil {
 			return err
 		}
+	case "completion-report":
+		if err := completionReport(api, dataDir, server.Close); err != nil {
+			return err
+		}
 	default:
 		return fmt.Errorf("unknown workflow check %q", name)
 	}

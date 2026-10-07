@@ -23,11 +23,13 @@ type vesselView struct {
 
 type runView struct {
 	ID           string                      `json:"id"`
+	Code         string                      `json:"code"`
 	State        domain.RunState             `json:"state"`
 	Version      int64                       `json:"version"`
 	VesselID     *string                     `json:"vessel_id"`
 	Observations []domain.GravityObservation `json:"observations"`
 	Metrics      *domain.RunMetrics          `json:"metrics"`
+	EndedAt      *time.Time                  `json:"ended_at"`
 }
 
 type pairView struct {

@@ -69,6 +69,9 @@ func normalizeSnapshot(value domain.Snapshot) (domain.Snapshot, error) {
 	if value.Runs == nil {
 		value.Runs = map[string]domain.FermentationRun{}
 	}
+	if value.Reports == nil {
+		value.Reports = map[string]domain.CompletionReport{}
+	}
 	if value.NameIndex == nil {
 		value.NameIndex = map[string]string{}
 	}
@@ -81,7 +84,45 @@ func normalizeSnapshot(value domain.Snapshot) (domain.Snapshot, error) {
 	if err := validateIndexes(value); err != nil {
 		return domain.Snapshot{}, err
 	}
+	if err := validateReports(value); err != nil {
+		return domain.Snapshot{}, err
+	}
 	return value, nil
+}
+
+// validateReports guards the frozen-report invariants on load. A report must
+// reference an existing completed run, and the frozen final metrics must be
+// the same values the run detail endpoint serves. Invalid snapshots stop the
+// process instead of silently serving divergent reports.
+func validateReports(value domain.Snapshot) error {
+	for key, report := range value.Reports {
+		if key != report.RunID {
+			return fmt.Errorf("completion report %s does not match its run key", key)
+		}
+		if report.State != domain.RunCompleted {
+			return fmt.Errorf("completion report %s does not freeze a completed run", key)
+		}
+		run, ok := value.Runs[report.RunID]
+		if !ok {
+			return fmt.Errorf("completion report %s references a missing run", key)
+		}
+		if run.State != domain.RunCompleted {
+			return fmt.Errorf("completion report %s run is not completed", key)
+		}
+		if run.Metrics == nil {
+			return fmt.Errorf("completed run %s lost its final metrics", key)
+		}
+		if report.Metrics != *run.Metrics {
+			return fmt.Errorf("completion report %s metrics diverge from the run detail", key)
+		}
+		if len(report.Observations) != len(run.Observations) {
+			return fmt.Errorf("completion report %s does not freeze all observations", key)
+		}
+		if report.GeneratedAt.IsZero() {
+			return fmt.Errorf("completion report %s is missing its generation time", key)
+		}
+	}
+	return nil
 }
 
 func validateIndexes(value domain.Snapshot) error {
